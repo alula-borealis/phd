@@ -12,7 +12,6 @@ r_sun = ayc.R_sun
 kpc = ayc.kpc
 pc = ayc.pc
 
-
 m1 = 1e5    # mass in solar mass
 m2 = 1e5
 f1 = 1e-2   # testing frequencies for LISA
@@ -42,7 +41,7 @@ def calculate_strain(mass, freqs, r):
 
 r = 3   # distance in Gpc
 masses = np.linspace(1e5, 1e8, 5)
-freqs = np.arange(0.0001, 0.01, 0.0005)
+freqs = np.linspace(0.000001, 10, 100)
 strains = []
 
 for mass in masses:
@@ -53,6 +52,7 @@ for mass in masses:
 for i, mass in enumerate(masses):
     plt.plot(freqs, strains[i], label=f"Mass of BH = {mass} M_solar")
 
+### this probably needs to be a loglog graph!
 
 plt.title("Strain vs Frequency for different BH masses")
 plt.xlabel("Frequency (Hz)")
