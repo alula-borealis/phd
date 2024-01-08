@@ -19,7 +19,7 @@ MPC = pc*1e6
 cspeed = syc.c
 
 # variables
-f = np.logspace(np.log10(1.0e-5), np.log10(1.0e0), 1000)
+#f = np.logspace(np.log10(1.0e-5), np.log10(1.0e0), 1000)
 Larm = 2.5e9
 fstar = Clight/(2*pi*Larm)
 NC = 2    # default data channels
@@ -89,10 +89,14 @@ Sn = Sn(f) + SnC(f) #Pn/R + SnC
 TSUN = 4.92549232189886339689643862e-6
 m1 = 0.5e6*TSUN 
 m2 = 0.5e6*TSUN
+z = 3.0
+#### source frame to detector frame
+##### this fixed the issues with the x-axis
+m1 *= 1. + z
+m2 *= 1. + z
 M = m1 + m2
 Mc = ((m1*m2)**(3/5))/(M**(1/5))
 eta = (m1*m2)/M**2
-z = 3.0
 T_merge = 1.*YEAR
 H0      = 69.6      # Hubble parameter today
 Omega_m = 0.286     # density parameter of matter
@@ -159,12 +163,20 @@ def Dl(z, Omega_m, H0):
     return 2.*cspeed/H0*((1.0e-3)*MPC)*(1 + z)/np.sqrt(Omega_m)*(Phi0 - PhiZ/np.sqrt(1. + z))
 
 
+f_cut = get_freq(M, eta, "cut")
+f_start = (5.*Mc/T_merge)**(3./8.)/(8.*np.pi*Mc)
+
+f_signal = np.logspace(np.log10(f_start), np.log10(f_cut), 508, endpoint=False)
+
+
 Dl = Dl(z, Omega_m, H0)
-A = Aeff(f, M, eta, Dl)
+A = Aeff(f_signal, M, eta, Dl)
 
 Shf = (A**2)/2*Tobs
 
-heff = np.sqrt((16*f*2*f*Tobs*Shf)/5)
+
+heff = np.sqrt((16*f_signal*2*f_signal*Tobs*Shf)/5)
+######## this is WRONG! Plotting spectral density, not strain!
 
 
 #################### plotting
@@ -177,8 +189,8 @@ ax.tick_params(axis='both', which='major', labelsize=11)
 ax.set_xlim(1.0e-5, 1.0e0)
 ax.set_ylim(3.0e-22, 1.0e-15)
     
-ax.loglog(f, np.sqrt(Sn*f)) # plot the characteristic strain
-ax.loglog(f, heff)
+ax.loglog(f, np.sqrt(Sn*f)) # plot the characteristic strain of LISA
+ax.loglog(f_signal, heff) # source
 
 plt.show()
     
