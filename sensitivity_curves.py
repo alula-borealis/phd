@@ -5,7 +5,7 @@ import astropy.constants as ayc
 from scipy import interpolate
 
 # constants
-G = syc.g
+G = syc.G
 Clight = syc.c
 pi = syc.pi
 m_sun = ayc.M_sun
@@ -90,6 +90,7 @@ TSUN = 4.92549232189886339689643862e-6
 m1 = 0.5e6*TSUN 
 m2 = 0.5e6*TSUN
 z = 3.0
+MPC = 3.08568025e22/cspeed
 #### source frame to detector frame
 ##### this fixed the issues with the x-axis
 m1 *= 1. + z
@@ -166,18 +167,18 @@ def Dl(z, Omega_m, H0):
 f_cut = get_freq(M, eta, "cut")
 f_start = (5.*Mc/T_merge)**(3./8.)/(8.*np.pi*Mc)
 
+
 f_signal = np.logspace(np.log10(f_start), np.log10(f_cut), 508, endpoint=False)
 
 
 Dl = Dl(z, Omega_m, H0)
 A = Aeff(f_signal, M, eta, Dl)
 
-Shf = (A**2)/2*Tobs
+heff = (np.sqrt(16/5*f_signal**2)*A)
 
+####### tests
 
-heff = np.sqrt((16*f_signal*2*f_signal*Tobs*Shf)/5)
-######## this is WRONG! Plotting spectral density, not strain!
-
+T_merger = 5.*Mc/(8.*np.pi*f_start*Mc)**(8./3.)
 
 #################### plotting
 fig, ax = plt.subplots(1, figsize=(5,3))
