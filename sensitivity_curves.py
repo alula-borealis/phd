@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import scipy.constants as syc
 import astropy.constants as ayc
 from scipy import interpolate
+import hasasia.sensitivity as sens
+import hasasia.sim as sim
 
 # constants
 G = syc.G
@@ -178,7 +180,36 @@ heff = (np.sqrt(16/5*f_signal**2)*A)
 
 ####### tests
 
-T_merger = 5.*Mc/(8.*np.pi*f_start*Mc)**(8./3.)
+#### this is how long, in seconds, the binary is until it's merger at
+#### certain frequency
+T_merger = 5.*Mc/(8.*np.pi*f_start*Mc)**(8./3.) ### ref: https://par.nsf.gov/servlets/purl/10310155
+#print(T_merger)
+
+##### PTAS
+
+totalT = 15*YEAR
+spacet = 2*7*24*60*60
+
+ptarange = np.linspace(1/totalT, 1/spacet, 300)
+print(ptarange)
+
+
+
+phi = np.random.uniform(0, 2*np.pi,size=34)
+theta = np.random.uniform(0, np.pi,size=34)
+
+psrs = sim.sim_pta(timespan=11.4, cad=23, sigma=1e-7,
+                   phi=phi, theta=theta, Npsrs=34)
+
+freqs = np.logspace(np.log10(5e-10),np.log10(5e-7),400)
+spectra = []
+for p in psrs:
+     sp = sens.Spectrum(p, freqs=freqs)
+     sp.NcalInv
+     spectra.append(sp)
+
+scGWB = sens.GWBSensitivityCurve(spectra)
+scDeter = sens.DeterSensitivityCurve(spectra)
 
 #################### plotting
 fig, ax = plt.subplots(1, figsize=(5,3))
@@ -187,12 +218,15 @@ ax.set_xlabel(r'f [Hz]', fontsize=11, labelpad=10)
 ax.set_ylabel(r'Characteristic Strain', fontsize=11, labelpad=10)
 ax.tick_params(axis='both', which='major', labelsize=11)
     
-ax.set_xlim(1.0e-5, 1.0e0)
-ax.set_ylim(3.0e-22, 1.0e-15)
+#ax.set_xlim(1.0e-5, 1.0e0)
+#ax.set_ylim(3.0e-22, 1.0e-15)
     
-ax.loglog(f, np.sqrt(Sn*f)) # plot the characteristic strain of LISA
-ax.loglog(f_signal, heff) # source
+ax.loglog(f, np.sqrt(Sn*f), label=r'LISA') # plot the characteristic strain of LISA
+ax.loglog(f_signal, heff, label=r'MBHB $10^{6}\mathrm{M_{\odot}}$ at $z = 3$') # source
+ax.loglog(freqs,scGWB.h_c,label=r'Stochastic PTA')
+ax.loglog(freqs,scDeter.h_c,label=r'Deterministic PTA')
 
+plt.legend()
 plt.show()
     
 
