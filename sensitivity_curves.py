@@ -3,8 +3,9 @@ import matplotlib.pyplot as plt
 import scipy.constants as syc
 import astropy.constants as ayc
 from scipy import interpolate
-import hasasia.sensitivity as sens
-import hasasia.sim as sim
+# hasasia
+import hasasia.sensitivity as hsen
+import hasasia.sim as hsim
 
 # constants
 G = syc.G
@@ -191,25 +192,29 @@ totalT = 15*YEAR
 spacet = 2*7*24*60*60
 
 ptarange = np.linspace(1/totalT, 1/spacet, 300)
-print(ptarange)
 
-
-
-phi = np.random.uniform(0, 2*np.pi,size=34)
+###### hasasia
+phi = np.random.uniform(0, 2*np.pi,size=34) # intialize 34 pulsar positions and lifespans
 theta = np.random.uniform(0, np.pi,size=34)
 
-psrs = sim.sim_pta(timespan=11.4, cad=23, sigma=1e-7,
-                   phi=phi, theta=theta, Npsrs=34)
+psrs = hsim.sim_pta(timespan=11.4, cad=23, sigma=1e-7,
+                   phi=phi, theta=theta, Npsrs=34)  # builds curve
 
-freqs = np.logspace(np.log10(5e-10),np.log10(5e-7),400)
+freqs = np.logspace(np.log10(5e-10),np.log10(5e-7),400) # freqs to calc red noise
 spectra = []
 for p in psrs:
-     sp = sens.Spectrum(p, freqs=freqs)
+     sp = hsen.Spectrum(p, freqs=freqs)
      sp.NcalInv
      spectra.append(sp)
 
-scGWB = sens.GWBSensitivityCurve(spectra)
-scDeter = sens.DeterSensitivityCurve(spectra)
+scGWB = hsen.GWBSensitivityCurve(spectra)
+scDeter = hsen.DeterSensitivityCurve(spectra)
+
+#### real PTA data - NANOGrav 15 year data
+nanodata = np.loadtxt('/home/laura/phd_things/sensitivity_curves/sensitivity_curves_NG15yr_fullPTA.txt', delimiter=",")
+
+nanofreqs = nanodata[:, 0]
+nanostrain = nanodata[:, 1]
 
 #################### plotting
 fig, ax = plt.subplots(1, figsize=(5,3))
@@ -225,6 +230,7 @@ ax.loglog(f, np.sqrt(Sn*f), label=r'LISA') # plot the characteristic strain of L
 ax.loglog(f_signal, heff, label=r'MBHB $10^{6}\mathrm{M_{\odot}}$ at $z = 3$') # source
 ax.loglog(freqs,scGWB.h_c,label=r'Stochastic PTA')
 ax.loglog(freqs,scDeter.h_c,label=r'Deterministic PTA')
+ax.loglog(nanofreqs, nanostrain, label=r'NANOGrav 15 yr data')
 
 plt.legend()
 plt.show()
