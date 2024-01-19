@@ -3,7 +3,7 @@ import cosmopy
 import astropy as ap
 import astropy.constants
 import h5py
-import matplotlib as mpl
+import matplotlib as mplP
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
@@ -28,6 +28,8 @@ YR = ap.units.year.to(ap.units.s)
 MSOL = ap.constants.M_sun.cgs.value   
 PC = ap.constants.pc.cgs.value
 MPC = 1.0e6*PC # mega-parsec
+NWTG = ap.constants.G.cgs.value             #: Newton's Gravitational Constant [cm^3/g/s^2]
+SPLC = ap.constants.c.cgs.value             #: Speed of light [cm/s]
 
 # parameters
 
@@ -69,7 +71,7 @@ mrat = 0.3      #: mass-ratio of all binaries
 # draw 1D data distributions
 # holodeck has a function figax() which defines all plot parameters and scaling
 # this is rewritten to clearly see how they produce this graph
-fig, ax = plt.subplots(2,1, figsize=(7,6))
+fig, ax = plt.subplots(3,1, figsize=(7,6))
 ax[0].set_xscale("log")
 ax[0].set_yscale("log")
 ax[0].set(xlabel="Total Mass $[M_\odot]$", ylabel="Number Density $[1/M_\odot]$")
@@ -129,4 +131,107 @@ draw_hist_steps(ax[1], mbin_edges/MSOL, ndens*MSOL*(MPC**3))
 
 plt.tight_layout()
 plt.savefig("distribution.png")
+
+
+######### SEMI-ANALYTICAL CALCULATION
+## assuming circular, GW-driven evolution
+
+## get bin-edges in chirp-mass
+
+mchirp_edges = mbin_edges*np.power(mrat, 3.0/5.0) / np.power(1 + mrat, 6.0/5.0)
+mchirp_cents = 0.5 * (mchirp_edges[:-1] + mchirp_edges[1:])
+
+## construct the integrand
+integrand = ndens * np.power(NWTG*mchirp_cents, 5.0/3.0)*np.power(1+redz, -1.0/3.0)
+
+## sum over bins
+gwb_sa = ((4.0*np.pi)/(3*SPLC**2))*np.power(np.pi*fobs_gw, -4.0/3.0)*np.sum(integrand*np.diff(mbin_edges))
+gwb_sa = np.sqrt(gwb_sa)
+
+#######
+
+######## MONTE CARLO CALCULATION
+# from holodeck
+def gwb_number_from_ndens(ndens, medges, mc_cents, dcom, fro):
+    """Convert from binary (volume-)density [dn/dM], to binary number [dN/dM].
+    
+    Effectively, [Sesana+2008] Eq.6.
+    
+    """
+    # `fro` = rest-frame orbital frequency
+    integrand = ((20*np.pi*(SPLC**6))/96)*ndens*np.diff(medges)
+    integrand *= (dcom**2)*(1.0 + redz)*np.power(NWTG*mc_cents, -5.0/3.0)
+    integrand = integrand[:, np.newaxis]*np.power(2.0*np.pi*fro, -8.0/3.0)
+    return integrand
+
+# Convert from observer-frame GW frequency to rest-frame orbital frequency (assuming circular binaries)
+frst_orb = fobs_gw[np.newaxis, :]*(1.0 + redz)/2.0
+
+# Get comoving distance, units of [cm]
+dcom = cosmo.comoving_distance(redz).cgs.value
+
+# Calculate spectral strain of binaries at bin-centers
+hs_mc = (8.0 / np.sqrt(10))*np.power(NWTG*mchirp_cents, 5.0/3.0)/(dcom*(SPLC**4))
+hs_mc = hs_mc[:, np.newaxis]*np.power(2*np.pi*frst_orb, 2.0/3.0) 
+
+# Get the distribution of number of binaries
+integrand = gwb_number_from_ndens(ndens, mbin_edges, mchirp_cents, dcom, frst_orb)
+
+# Sum over bins to get GWB amplitude
+gwb_mc = np.sum(integrand*(hs_mc**2), axis=0)
+gwb_mc = np.sqrt(gwb_mc)
+
+## both match so far - haven't actually done MC sampling
+## they both assume a smooth continuous distribution
+
+### ensuring no. binaries in a bin is an integer
+
+NREALS = 100    #: choose a number of realizations to model
+
+"""
+NOTE: `gwb_number_from_ndens` returns ``dN/dln(f)``.  We want to create realizations based on ``N``
+    the actualy number of binaries.  So we multiply by ``Delta ln(f)``, to get the number of
+    binaries in each frequency bin (``Delta N_i``).  Then we calculate the discretizations.
+    Then we divide by ``Delta ln(f)`` again, to get the number of binaries per frequency bin,
+    needed for the GW characteristic strain calculation.
+"""
+
+integrand = gwb_number_from_ndens(ndens, mbin_edges, mchirp_cents, dcom, frst_orb)
+
+# get the number of binaries in each frequency bin
+integrand = integrand*np.diff(np.log(fobs_gw_edges))
+
+num_exp = np.sum(integrand[:, 0])
+print(f"Expected number of binaries in zero freq bin: {num_exp:.4e}")
+
+# Calculate "realizations" by Poisson sampling distribution of binary number
+realized = np.random.poisson(integrand[..., np.newaxis], size=integrand.shape + (NREALS,))
+
+# convert back to number of binaries per log-frequency interval, for GWB calculation
+realized = realized/np.diff(np.log(fobs_gw_edges))[np.newaxis, :, np.newaxis]
+
+num_real = np.sum(realized[:, 0, :], axis=0)
+num_real_ave = np.mean(num_real)
+num_real_std = np.std(num_real)
+print(f"Realized number of binaries in zero freq bin: {num_real_ave:.4e} ± {num_real_std:.2e}")
+
+# Calculate GWB amplitude
+gwb_mc_real = np.sum(realized*(hs_mc**2)[..., np.newaxis], axis=0)
+gwb_mc_real = np.sqrt(gwb_mc_real)
+
+## plot gwb
+ax[2].set_xscale("log")
+ax[2].set_yscale("log")
+ax[2].set(xlabel='Frequency [$yr^{-1}$]', ylabel='Characteristic Strain')
+xx = fobs_gw*YR
+ax[2].plot(xx, gwb_sa, label="Semi-analytic")
+ax[2].plot(xx, gwb_mc, label="Monte-Carlo")
+
+color = 'r'
+gwb_mc_med = np.median(gwb_mc_real, axis=-1)
+gwb_mc_span = np.percentile(gwb_mc_real, [25, 75], axis=-1)
+ax[2].plot(xx, gwb_mc_med, lw=0.5, color=color)
+ax[2].fill_between(xx, *gwb_mc_span, alpha=0.25, color=color, label='MC realized')
+
+ax[2].legend()
 plt.show()
