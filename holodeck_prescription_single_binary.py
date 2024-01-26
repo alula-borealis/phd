@@ -1,3 +1,5 @@
+## this is code for the GW strain of a single binary at a single frequecy
+
 import numpy as np
 import matplotlib.pyplot as plt
 import astropy as ap
