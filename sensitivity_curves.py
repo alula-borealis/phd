@@ -92,15 +92,38 @@ Sn = Sn(f) + SnC(f) #Pn/R + SnC
 TSUN = 4.92549232189886339689643862e-6
 m1 = 0.5e6*TSUN 
 m2 = 0.5e6*TSUN
+
+m12 = 0.5e7*TSUN 
+m22 = 0.5e7*TSUN
+
+m13 = 0.5e8*TSUN 
+m23 = 0.5e8*TSUN
+
 z = 3.0
 MPC = 3.08568025e22/cspeed
 #### source frame to detector frame
 ##### this fixed the issues with the x-axis
 m1 *= 1. + z
 m2 *= 1. + z
+
+m12 *= 1. + z
+m22 *= 1. + z
+
+m13 *= 1. + z
+m23 *= 1. + z
+
 M = m1 + m2
+M2 = m12 + m22
+M3 = m13 + m23
+
 Mc = ((m1*m2)**(3/5))/(M**(1/5))
+Mc2 = ((m12*m22)**(3/5))/(M2**(1/5))
+Mc3 = ((m13*m23)**(3/5))/(M3**(1/5))
+
 eta = (m1*m2)/M**2
+eta2 = (m12*m22)/M2**2
+eta3 = (m13*m23)/M3**2
+
 T_merge = 1.*YEAR
 H0      = 69.6      # Hubble parameter today
 Omega_m = 0.286     # density parameter of matter
@@ -150,7 +173,7 @@ def Aeff(f, M, eta, Dl):
     A[mask1] = C*(f[mask1]/f_merg)**(-7./6)
     A[mask2] = C*(f[mask2]/f_merg)**(-2./3)
     A[mask3] = C*w*Lorentzian(f[mask3], f_ring, sigma)
-    
+
     return A
 
 def Dl(z, Omega_m, H0):
@@ -168,16 +191,26 @@ def Dl(z, Omega_m, H0):
 
 
 f_cut = get_freq(M, eta, "cut")
-f_start = (5.*Mc/T_merge)**(3./8.)/(8.*np.pi*Mc)
+f_cut2 = get_freq(M2, eta2, "cut")
+f_cut3 = get_freq(M3, eta3, "cut")
 
+f_start = (5.*Mc/T_merge)**(3./8.)/(8.*np.pi*Mc)
+f_start2 = (5.*Mc2/T_merge)**(3./8.)/(8.*np.pi*Mc2)
+f_start3 = (5.*Mc3/T_merge)**(3./8.)/(8.*np.pi*Mc3)
 
 f_signal = np.logspace(np.log10(f_start), np.log10(f_cut), 508, endpoint=False)
-
+f_signal2 = np.logspace(np.log10(f_start2), np.log10(f_cut2), 508, endpoint=False)
+f_signal3 = np.logspace(np.log10(f_start3), np.log10(f_cut3), 508, endpoint=False)
 
 Dl = Dl(z, Omega_m, H0)
+
 A = Aeff(f_signal, M, eta, Dl)
+A2 = Aeff(f_signal2, M2, eta2, Dl)
+A3 = Aeff(f_signal3, M3, eta3, Dl)
 
 heff = (np.sqrt(16/5*f_signal**2)*A)
+heff2 = (np.sqrt(16/5*f_signal2**2)*A2)
+heff3 = (np.sqrt(16/5*f_signal3**2)*A3)
 
 ####### tests
 
@@ -211,13 +244,13 @@ scGWB = hsen.GWBSensitivityCurve(spectra)
 scDeter = hsen.DeterSensitivityCurve(spectra)
 
 #### real PTA data - NANOGrav 15 year data
-nanodata = np.loadtxt('/home/laura/phd_things/sensitivity_curves/sensitivity_curves_NG15yr_fullPTA.txt', delimiter=",")
+nanodata = np.loadtxt('./sensitivity_curves_nanograv/sensitivity_curves/sensitivity_curves_NG15yr_fullPTA.txt', delimiter=",")
 
 nanofreqs = nanodata[:, 0]
 nanostrain = nanodata[:, 1]
 
 #################### plotting
-fig, ax = plt.subplots(1, figsize=(5,3))
+fig, ax = plt.subplots(1)
 
 ax.set_xlabel(r'f [Hz]', fontsize=11, labelpad=10)
 ax.set_ylabel(r'Characteristic Strain', fontsize=11, labelpad=10)
@@ -228,12 +261,14 @@ ax.tick_params(axis='both', which='major', labelsize=11)
     
 ax.loglog(f, np.sqrt(Sn*f), label=r'LISA') # plot the characteristic strain of LISA
 ax.loglog(f_signal, heff, label=r'MBHB $10^{6}\mathrm{M_{\odot}}$ at $z = 3$') # source
+ax.loglog(f_signal2, heff2, label=r'MBHB $10^{7}\mathrm{M_{\odot}}$ at $z = 3$') # source
+ax.loglog(f_signal3, heff3, label=r'MBHB $10^{8}\mathrm{M_{\odot}}$ at $z = 3$') # source
 ax.loglog(freqs,scGWB.h_c,label=r'Stochastic PTA')
 ax.loglog(freqs,scDeter.h_c,label=r'Deterministic PTA')
 ax.loglog(nanofreqs, nanostrain, label=r'NANOGrav 15 yr data')
 
 plt.legend()
-plt.show()
-    
+plt.savefig("sensitivity_curves.png", dpi=1200)
+plt.show()    
 
 
