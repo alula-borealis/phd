@@ -1,15 +1,19 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from astropy import constants as const
+import matplotlib.colors as colors
 
 C_SPEED = 299792458
 G_CONST = 6.674*10**(-11)
 M_SUN = 2*10**(30)
 PC = 3.086*10**(16)
 
-total_mass = np.linspace(1e6*M_SUN, 1e10*M_SUN, num=1000)
-solar_mass = np.linspace(1e6, 1e10, num=1000)
-mass_ratio = np.linspace(0.0001, 1.0, num=1000)
+############ add in plots of lifetime as well as separation
+
+total_mass = np.geomspace(1e6*M_SUN, 1e10*M_SUN, num=1000)
+solar_mass = np.geomspace(1e6, 1e10, num=1000)
+mass_ratio = np.geomspace(0.0001, 1, num=1000)
+
 
 #s_radius = (2*G_CONST*total_mass)/(C_SPEED**2) 
 
@@ -32,17 +36,25 @@ print(life_years)
 coeff = (256*G_CONST**3.0)/(5*C_SPEED**5)
 hub_time = (1e8)*31556952
 
+#sep_quad = coeff*((mass_grid**3)*(ratio_grid)*hub_time/(ratio_grid + 1)**2)
 sep_quad = coeff*((mass_grid**3)*(ratio_grid)*hub_time/(ratio_grid + 1)**2)
 sep = sep_quad**(1/4)
-
 sep_pc = sep/PC
 
-plt.figure()
-#plt.scatter(mass_grid, ratio_grid, c=life_years, cmap="viridis")
+fig, ax = plt.subplots()
 
+pcm = ax.pcolormesh(solar_mass, mass_ratio, sep_pc, norm='log', cmap='viridis')
 
-plt.pcolormesh(solar_mass, mass_ratio, sep_pc, cmap='viridis')
-#plt.scatter(mass_grid, ratio_grid, c=life_years)
-cbar = plt.colorbar(label='Separation (pc)')
+ax.set_xscale('log')
+ax.set_yscale('log')
+ax.set_xlim([min(solar_mass), max(solar_mass)])
+ax.set_ylim([min(mass_ratio), max(mass_ratio)])
+ax.set_xlabel("Total Mass ($M_{\odot}$)")
+ax.set_ylabel("Mass Ratio")
+
+fig.colorbar(pcm, label='Separation $(pc)$')
+#pcm = ax.pcolor(solar_mass, mass_ratio, sep_pc,
+                   #norm=colors.LogNorm(vmin=sep_pc.min(), vmax=sep_pc.max()),
+                   #cmap='PuBu_r', shading='auto')
 
 plt.show()
