@@ -30,7 +30,7 @@ dc = cosmo.comoving_distance(z).si.value   # comoving distance (these should be 
 print("vsim", vsim)
 print("dc", dc)
 
-fbins = 100
+fbins = 1000
 freqs = np.linspace(0.0001, 1, fbins) # for population
 # f = 1*u.Hz.si # for single binary
 print("f", freqs)
@@ -79,4 +79,5 @@ total_strain = calculate_strain(massesc, fr, dl, vsim, z)
 plt.loglog(fr, total_strain)
 plt.xlabel('Frequency (Hz)')
 plt.ylabel('Gravitational Wave Strain')
+plt.title('Population of MBHB, semi-analytic')
 plt.show()

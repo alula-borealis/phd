@@ -3,6 +3,7 @@ from scipy.special import jv
 import matplotlib.pyplot as plt
 from astropy import constants as const
 from astropy.cosmology import WMAP9 as cosmo
+import matplotlib.colors as colors
 
 # latex
 plt.rc('text', usetex=True)
@@ -98,24 +99,22 @@ plt.show()
 
 # max frequency of EMRI (at ISCO)
 
-primary_m = 1e6*M_SUN
+primary_m = 4.3e6*M_SUN
 secondary_lower_m = 1e-15*M_SUN
 secondary_higher_m = 1e-12*M_SUN
 
-f_isco_max = 4.4*1000*(M_SUN/primary_m)
-#r_0 = 1e3*PC    # distance from earth
-distance = np.geomspace(1e3*PC, 1e9*PC, num=1000)
-dist_pc = distance/PC
-#f_2 = 0.0001
-lisa_freq = np.geomspace(1e-4, 1.0, num=1000) #LISA band
+chirp = (primary_m*secondary_higher_m)**(3/5)/(primary_m + secondary_higher_m)**(1/5)
 
-## for m=2 from 0007074
+f_isco_max = 4.4*1000*(M_SUN/primary_m)
+distance = np.geomspace(8e3*PC, 1e9*PC, num=1000)
+dist_pc = distance/PC
+
+lisa_freq = np.geomspace(0.0001, f_isco_max, num=1000) #LISA band
 
 freq_grid, r_grid = np.meshgrid(lisa_freq, distance)
 
 strain_lower = (3.2e-22)/((r_grid)/(1e9*PC))*((secondary_lower_m/M_SUN)**(1/2))*((primary_m/(100*M_SUN))**(1/3))*((100/freq_grid)**(1/6))
 strain_higher = (3.2e-22)/((r_grid)/(1e9*PC))*((secondary_higher_m/M_SUN)**(1/2))*((primary_m/(100*M_SUN))**(1/3))*((100/freq_grid)**(1/6))
-
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10,4))
 
@@ -125,7 +124,6 @@ ax1.set_title(r'$\mu = 10^{-15} M_{\odot}$')
 ax1.set_xscale('log')
 ax1.set_yscale('log')
 ax1.set_xlim([min(lisa_freq), f_isco_max])
-#ax1.set_ylim([min(mass_ratio), max(mass_ratio)])
 ax1.set_xlabel(r"Frequency (Hz)", fontsize=14)
 ax1.set_ylabel(r"$r_0$ (pc)", fontsize=14)
 ax1.tick_params(labelsize=13)
@@ -147,7 +145,6 @@ ax2.set_title(r'$\mu = 10^{-12} M_{\odot}$')
 ax2.set_xscale('log')
 ax2.set_yscale('log')
 ax2.set_xlim([min(lisa_freq), f_isco_max])
-#ax1.set_ylim([min(mass_ratio), max(mass_ratio)])
 ax2.set_xlabel(r"Frequency (Hz)", fontsize=14)
 ax2.set_ylabel(r"$r_0$ (pc)", fontsize=14)
 ax2.tick_params(labelsize=13)
@@ -160,12 +157,11 @@ bar2 = fig.colorbar(pcm2, ax=ax2)
 bar2.ax.tick_params(labelsize=13)
 bar2.set_label(label=R'$h_{c,2}$', size=14, labelpad=10)
 
-
 fig.tight_layout()
 
-plt.savefig("distance_bounds_emri.png", dpi=2000)
+plt.savefig("distance_bounds_emri_classic.png", dpi=200)
 
-r_lower = 1e3*PC
+r_lower = 8e3*PC
 r_higher = 1e9*PC
 
 strain_mlow_rlow = (3.2e-22)/((r_lower)/(1e9*PC))*((secondary_lower_m/M_SUN)**(1/2))*((primary_m/(100*M_SUN))**(1/3))*((100/lisa_freq)**(1/6))
@@ -185,7 +181,7 @@ ax21.set_ylabel(r"$h_{c,2}$", fontsize=14)
 ax21.plot(lisa_freq, strain_mhigh_rhigh, label=r'$\mu = 10^{-12} M_{\odot}$')
 ax21.plot(lisa_freq, strain_mlow_rhigh, label=r'$\mu = 10^{-15} M_{\odot}$')
 
-ax22.set_title(r'$r_0 = 10^{3}$ (pc)')
+ax22.set_title(r'$r_0 = 8 \times 10^{3}$ (pc)')
 ax22.set_xscale('log')
 ax22.set_yscale('log')
 ax22.set_xlim([min(lisa_freq), f_isco_max])
@@ -194,9 +190,99 @@ ax22.set_ylabel(r"$h_{c,2}$", fontsize=14)
 ax22.plot(lisa_freq, strain_mhigh_rlow, label=r'$\mu = 10^{-12} M_{\odot}$')
 ax22.plot(lisa_freq, strain_mlow_rlow, label=r'$\mu = 10^{-15} M_{\odot}$')
 
+plt.legend()
+plt.savefig("mass_bounds_emris_classic.png", dpi=200)
+
+### merger time
+
+chirp_mass = np.geomspace(1e-7*M_SUN, 1e-5*M_SUN, num=1000)
+chirp_solar = np.geomspace(1e-7, 1e-5, num=1000)
+lisa_frequency = np.geomspace(0.001, 1, num=1000)
+
+freq_grid_lisa, chirp_grid = np.meshgrid(lisa_frequency, chirp_mass)
+
+coeff = (96/5)*(np.pi**(8/3))*(((G_CONST*chirp_grid)/C_SPEED**3)**(5/3))
+
+
+t_merge = (3/8)*((freq_grid_lisa**(-8/3)))/coeff
+t_years = t_merge/31556952
+t_years = t_years.astype(float)
+
+print("years: ", t_years)
+
+fig3, ax3 = plt.subplots(figsize=(10,4))
+
+pcm3 = ax3.pcolormesh(lisa_frequency, chirp_solar, t_years, norm='log', cmap='viridis')
+
+
+ax3.set_xscale('log')
+ax3.set_yscale('log')
+#ax3.set_xlim([min(lisa_frequency), max(lisa_frequency)])
+#ax3.set_ylim([min(chirp_mass), max(chirp_mass)])
+ax3.set_ylabel(r"Chirp Mass ($M_{\odot}$)", fontsize=14)
+ax3.set_xlabel(r"Frequency", fontsize=14)
+ax3.tick_params(labelsize=13)
+
+bar3 = fig.colorbar(pcm3, ax=ax3)
+#pcm = ax.pcolor(solar_mass, mass_ratio, sep_pc,
+                   #norm=colors.LogNorm(vmin=sep_pc.min(), vmax=sep_pc.max()),
+                   #cmap='PuBu_r', shading='auto')
+bar3.ax.tick_params(labelsize=13)
+bar3.set_label(label=r'Merger Time (yr)', size=14, labelpad=10)
+
+fig.tight_layout()
+
+plt.savefig("lifetime_separation_emris.png", dpi=500)
+
+
+### test for comparing to 2205.10359
+
+fig4, ax4 = plt.subplots(figsize=(10,4))
+
+r_mega = 1e6*PC
+primary_m_classic = 10*M_SUN
+secondary_classic_m = 1e-4*M_SUN
+
+mass_c_classic = ((primary_m_classic*secondary_classic_m)**(3/5))/(primary_m_classic + secondary_classic_m)**(1/5)
+
+strain_classic = (3.2e-22)/((r_mega)/(1e9*PC))*((secondary_classic_m/M_SUN)**(1/2))*((primary_m/(100*M_SUN))**(1/3))*((100/lisa_freq)**(1/6))
+strain_h0 = (4/r_mega)*(((G_CONST*mass_c_classic)/C_SPEED**2)**(5/3))*((np.pi*lisa_freq)/C_SPEED)**(2/3)
+
+ax4.set_title(r'$r_0 = 10^{6}$ (pc)')
+ax4.set_xscale('log')
+ax4.set_yscale('log')
+ax4.set_xlim([min(lisa_freq), f_isco_max])
+ax4.set_xlabel(r"Frequency (Hz)", fontsize=14)
+ax4.set_ylabel(r"$h_{c,2}$", fontsize=14)
+ax4.plot(lisa_freq, strain_classic, label=r'$\mu = 10^{-4} M_{\odot}$, $M = 10 M_{\odot}$')
+
 
 plt.legend()
-plt.savefig("mass_bounds_emris.png", dpi=2000)
+plt.savefig("mass_bounds_emris_classic.png", dpi=200)
 
+#### fdot dependence
+
+fig5, ax5 = plt.subplots(figsize=(10,4))
+
+prime_mass = 4.2e6*M_SUN
+secondary_mass = np.geomspace(1e-15*M_SUN, 1e-12*M_SUN, num=1000)
+secondary_mass_solar = np.geomspace(1e-15, 1e-12, num=1000)
+
+fid_freq = 0.01
+
+coefficient = (96/5)*(np.pi**(8/3))*(G_CONST**(5/3))*(1/C_SPEED**5)
+f_dot = coefficient*(prime_mass*secondary_mass)/((prime_mass + secondary_mass)**(1/3))*(fid_freq**(11/3))
+
+ax5.set_title(r'$f = 0.01$, $M = 4.2 \times 10^6 M_{\odot}$')
+ax5.set_xscale('log')
+ax5.set_yscale('log')
+#ax5.set_xlim([min(lisa_freq), f_isco_max])
+ax5.set_xlabel(r"PBH Mass ($M_{\odot}$)", fontsize=14)
+ax5.set_ylabel(r"$\dot{f}$", fontsize=14)
+ax5.plot(secondary_mass_solar, f_dot)
+
+plt.savefig("mass_dependence_emri.png", dpi=200)
+
+##########
 plt.show()
 

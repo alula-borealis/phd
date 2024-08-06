@@ -1,9 +1,7 @@
 # packages
 import cosmopy
 import astropy as ap
-import astropy.constants
-import h5py
-import matplotlib as mplP
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
@@ -32,21 +30,23 @@ NWTG = ap.constants.G.cgs.value             #: Newton's Gravitational Constant [
 SPLC = ap.constants.c.cgs.value             #: Speed of light [cm/s]
 
 # parameters
-
 NUM = 1e6   #: number of starting, sample binaries
 MASS_EXTR = [1e6, 1e10] #: range of total-masses to construct (units of [Msol])
-
 # this selection comes from Sesana 08 discussed in 3.3
 # Specify PTA frequency range of interest
 TMAX = (20.0 * YR)  #: max observing time in units of [sec]
-NFREQS = 100    #: number of frequency bins to consider
+
+NFREQS = 1000    #: number of frequency bins to consider
 
 # Construct target PTA frequency bins
-fobs_gw = np.arange(1, NFREQS+1) / TMAX #: frequency bin-centers in units of [Hz]
+fobs_gw = np.arange(1, NFREQS+1) / TMAX
+#fobs_gw = np.linspace(0.0001, 1, NFREQS)
+print("freq", fobs_gw) #: frequency bin-centers in units of [Hz]
+#fobs_gw = np.arange(0.0001, 0.9)
 df = fobs_gw[0] / 2 #: half of frequency bin-width
 # [fobs_gw[-1] + df] gives right edge of last freq bin
 fobs_gw_edges = np.concatenate([fobs_gw - df, [fobs_gw[-1] + df]])  #: frequency bin-edges
-
+print("df", df)
 # construct sample population
 # likely want to change this to a class which can take actual models
 MASS_DENS_POWER_LAW = -3    #: power-law index of mass-distribution
@@ -66,7 +66,8 @@ del rr  # free memory
 # WHY??
 # Set fixed values of redshift and mass-ratio
 redz = 0.05      #: redshift of all binaries
-mrat = 0.3      #: mass-ratio of all binaries
+#redz = 0.01
+mrat = 0.8      #: mass-ratio of all binaries
 
 # draw 1D data distributions
 # holodeck has a function figax() which defines all plot parameters and scaling
@@ -81,7 +82,7 @@ kale.dist1d((masses/MSOL), carpet=False, density=False, ax=ax[0])
 
 ## constructing a number-density distribution
 
-NBINS = 123 #: number of mass-bins for number-density distribution
+NBINS = 1000 #: number of mass-bins for number-density distribution
 
 mbin_edges = MSOL*np.logspace(*np.log10(MASS_EXTR), NBINS+1)    #: edges of mass-bins, units of [gram]
 mbin_cents = 0.5*(mbin_edges[:-1] + mbin_edges[1:]) #: centers of mass-bins, units of [gram]
@@ -139,14 +140,15 @@ plt.savefig("distribution.png")
 ## get bin-edges in chirp-mass
 
 mchirp_edges = mbin_edges*np.power(mrat, 3.0/5.0) / np.power(1 + mrat, 6.0/5.0)
-mchirp_cents = 0.5 * (mchirp_edges[:-1] + mchirp_edges[1:])
+mchirp_cents = 0.5*(mchirp_edges[:-1] + mchirp_edges[1:])
 
 ## construct the integrand
-integrand = ndens * np.power(NWTG*mchirp_cents, 5.0/3.0)*np.power(1+redz, -1.0/3.0)
+integrand = ndens*np.power(NWTG*mchirp_cents, 5.0/3.0)*np.power(1+redz, -1.0/3.0)
 
 ## sum over bins
 gwb_sa = ((4.0*np.pi)/(3*SPLC**2))*np.power(np.pi*fobs_gw, -4.0/3.0)*np.sum(integrand*np.diff(mbin_edges))
 gwb_sa = np.sqrt(gwb_sa)
+print(gwb_sa)
 
 #######
 
@@ -186,11 +188,11 @@ gwb_mc = np.sqrt(gwb_mc)
 
 ### ensuring no. binaries in a bin is an integer
 
-NREALS = 100    #: choose a number of realizations to model
+NREALS = 1000    #: choose a number of realizations to model
 
 """
 NOTE: `gwb_number_from_ndens` returns ``dN/dln(f)``.  We want to create realizations based on ``N``
-    the actualy number of binaries.  So we multiply by ``Delta ln(f)``, to get the number of
+    the actual number of binaries.  So we multiply by ``Delta ln(f)``, to get the number of
     binaries in each frequency bin (``Delta N_i``).  Then we calculate the discretizations.
     Then we divide by ``Delta ln(f)`` again, to get the number of binaries per frequency bin,
     needed for the GW characteristic strain calculation.
@@ -201,7 +203,7 @@ integrand = gwb_number_from_ndens(ndens, mbin_edges, mchirp_cents, dcom, frst_or
 # get the number of binaries in each frequency bin
 integrand = integrand*np.diff(np.log(fobs_gw_edges))
 
-num_exp = np.sum(integrand[:, 0])
+num_exp = np.sum(integrand[:, :])
 print(f"Expected number of binaries in zero freq bin: {num_exp:.4e}")
 
 # Calculate "realizations" by Poisson sampling distribution of binary number
@@ -222,8 +224,9 @@ gwb_mc_real = np.sqrt(gwb_mc_real)
 ## plot gwb
 ax[2].set_xscale("log")
 ax[2].set_yscale("log")
-ax[2].set(xlabel='Frequency [$yr^{-1}$]', ylabel='Characteristic Strain')
-xx = fobs_gw*YR
+ax[2].set(xlabel='Frequency [$Hz$]', ylabel='Characteristic Strain')
+#xx = fobs_gw*YR
+xx = fobs_gw
 ax[2].plot(xx, gwb_sa, label="Semi-analytic")
 ax[2].plot(xx, gwb_mc, label="Monte-Carlo")
 
@@ -234,4 +237,6 @@ ax[2].plot(xx, gwb_mc_med, lw=0.5, color=color)
 ax[2].fill_between(xx, *gwb_mc_span, alpha=0.25, color=color, label='MC realized')
 
 ax[2].legend()
+fig.tight_layout()
+plt.savefig("strain_rewrite.png")
 plt.show()

@@ -217,7 +217,7 @@ heff3 = (np.sqrt(16/5*f_signal3**2)*A3)
 #### this is how long, in seconds, the binary is until it's merger at
 #### certain frequency
 T_merger = 5.*Mc/(8.*np.pi*f_start*Mc)**(8./3.) ### ref: https://par.nsf.gov/servlets/purl/10310155
-#print(T_merger)
+print(T_merger)
 
 ##### PTAS
 
@@ -269,6 +269,6 @@ ax.loglog(nanofreqs, nanostrain, label=r'NANOGrav 15 yr data')
 
 plt.legend()
 plt.savefig("sensitivity_curves.png", dpi=1200)
-plt.show()    
+#plt.show()    
 
 
